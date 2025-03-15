@@ -1,50 +1,67 @@
-const firebaseConfig = {
-    apiKey: "AIzaSyB83_s-zLKnC5SMaUq936hBgwFMU3Tc6_Y",
-    authDomain: "code-generator-65a8b.firebaseapp.com",
-    projectId: "code-generator-65a8b",
-    storageBucket: "code-generator-65a8b.appspot.com",
-    messagingSenderId: "487927483429",
-    appId: "1:487927483429:web:c57f5ae1f1ad8403f443cc",
-    measurementId: "G-NN4C7XHJXF"
-};
+const GITHUB_REPO = "tigermask1.github.io/CrackCode"; // Change this
+const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/codes.json`;
+const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/codes.json`;
+const GITHUB_TOKEN = "your_personal_access_token"; // Required for updating the file
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const codeRef = db.collection("codes").doc("latest");
-
-// Set a default code in case Firestore is empty
-const defaultCode = "1234567890";
-document.getElementById("code").textContent = defaultCode;
-
-async function generateNewCode() {
-    const newCode = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-    await codeRef.set({ code: newCode, timestamp: Date.now() });
-    return newCode;
-}
-
-async function checkAndUpdateCode() {
+async function fetchCode() {
     try {
-        const doc = await codeRef.get();
-        const now = Date.now();
-        
-        if (doc.exists) {
-            const data = doc.data();
-            if (now - data.timestamp >= 7200000) { // 2 hours check
-                const newCode = await generateNewCode();
-                document.getElementById("code").textContent = newCode;
-            } else {
-                document.getElementById("code").textContent = data.code;
-            }
-        } else {
-            // Firestore is empty, set default code
-            await codeRef.set({ code: defaultCode, timestamp: Date.now() });
-            document.getElementById("code").textContent = defaultCode;
-        }
+        const response = await fetch(RAW_URL + "?timestamp=" + new Date().getTime());
+        const data = await response.json();
+        document.getElementById("code").textContent = data.code;
     } catch (error) {
         console.error("Error fetching code:", error);
         document.getElementById("code").textContent = "Error loading code!";
     }
 }
 
-checkAndUpdateCode();
+async function updateCodeIfNeeded() {
+    try {
+        const response = await fetch(RAW_URL + "?timestamp=" + new Date().getTime());
+        const data = await response.json();
+        const now = Date.now();
+
+        if (!data.timestamp || now - data.timestamp >= 7200000) { // 2 hours passed
+            const newCode = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+            console.log("Generating new code:", newCode);
+            await updateCodeInGitHub(newCode);
+        }
+    } catch (error) {
+        console.error("Error checking/updating code:", error);
+    }
+}
+
+async function updateCodeInGitHub(newCode) {
+    try {
+        const getFileResponse = await fetch(API_URL, {
+            headers: { Authorization: `token ${GITHUB_TOKEN}` }
+        });
+        const fileData = await getFileResponse.json();
+        const sha = fileData.sha;
+
+        const updatedContent = {
+            code: newCode,
+            timestamp: Date.now()
+        };
+
+        await fetch(API_URL, {
+            method: "PUT",
+            headers: {
+                Authorization: `token ${GITHUB_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: "Update code",
+                content: btoa(JSON.stringify(updatedContent, null, 2)),
+                sha: sha
+            })
+        });
+
+        console.log("Code updated in GitHub!");
+        document.getElementById("code").textContent = newCode;
+    } catch (error) {
+        console.error("Error updating code in GitHub:", error);
+    }
+}
+
+fetchCode();
+setInterval(updateCodeIfNeeded, 60000); // Check every 1 min
