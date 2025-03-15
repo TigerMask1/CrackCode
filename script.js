@@ -1,7 +1,7 @@
 const GITHUB_REPO = "tigermask1.github.io/CrackCode"; // Change this
 const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/codes.json`;
 const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/codes.json`;
-const GITHUB_TOKEN = "your_personal_access_token"; // Required for updating the file
+const GITHUB_TOKEN = "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"; // Required for updating the file
 
 async function fetchCode() {
     try {
